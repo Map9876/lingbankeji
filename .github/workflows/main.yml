@@ -1,0 +1,53 @@
+name: Backup Website
+
+on:
+  push:
+  schedule:
+   - cron: "0 14 * * *"  # 每天 UTC 时间 14:00 运行
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  backup-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Set up Chromedriver
+        uses: nanasess/setup-chromedriver@v2
+
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium requests
+
+      - name: Run backup script
+        run: python3 ./run.py
+
+      - name: Commit changes
+        env:
+          GIT_NAME: GitHub Actions[Bot]
+          GIT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          git config --local user.name "$GIT_NAME"
+          git config --local user.email "$GIT_EMAIL"
+          git pull
+          git add .
+          git commit -m "Automated backup at `date '+%Y-%m-%d %H:%M:%S'`."
+          git push
